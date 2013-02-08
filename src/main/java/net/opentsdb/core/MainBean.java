@@ -51,7 +51,10 @@ public class MainBean {
 	/** The guice injector */
 	protected Injector injector = null;
 	
-	protected TelnetServer ts = null;
+	/** The opentsdb2 telnet server */
+	protected TelnetServer telnetServer = null;
+	/** The opentsdb2 web server */
+	protected Server webServer = null;
 	/**
 	 * Starts the opentsdb2 engine
 	 * @throws Exception thrown on any exception
@@ -63,7 +66,9 @@ public class MainBean {
 			startWebServer();
 			started.set(true);
 		} catch (Exception ex) {
-			started.set(false);			
+			started.set(false);	
+			if(telnetServer!=null) try { telnetServer.stop(); } catch (Exception e) {/*NoOp*/}
+			if(webServer!=null) try { webServer.stop(); } catch (Exception e) {/*NoOp*/}
 			ex.printStackTrace(System.err);
 			throw ex;
 		}
@@ -73,7 +78,11 @@ public class MainBean {
 	 * Stops the opentsdb2 engine
 	 */
 	public void stop() {
-		
+		if(started.get()) {
+			try { telnetServer.stop(); } catch (Exception ex) {/*NoOp*/}
+			try { webServer.stop(); } catch (Exception ex) {/*NoOp*/}		
+			started.set(false);
+		}
 	}
 	
 	/**
@@ -107,8 +116,8 @@ public class MainBean {
 	 * Starts the opentsdb telnet listener
 	 */
 	public void startTelnetListener() {
-		ts = injector.getInstance(TelnetServer.class);
-		ts.run();
+		telnetServer = injector.getInstance(TelnetServer.class);
+		telnetServer.run();
 		//System.out.println("Done run");
 	}
 
@@ -117,9 +126,9 @@ public class MainBean {
 	 * @throws Exception thrown on any exception
 	 */
 	public void startWebServer() throws Exception 	{
-		Server server = injector.getInstance(Server.class);
+		webServer = injector.getInstance(Server.class);
 		//System.out.println("Starting web server");
-		server.start();		
+		webServer.start();		
 	}
 	
 	
