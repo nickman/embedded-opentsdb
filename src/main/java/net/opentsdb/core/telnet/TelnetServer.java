@@ -13,31 +13,41 @@
 
 package net.opentsdb.core.telnet;
 
-import com.google.inject.Inject;
-import net.opentsdb.core.ProtocolService;
-import org.jboss.netty.channel.*;
-import com.google.inject.name.Named;
-import org.jboss.netty.bootstrap.ServerBootstrap;
-import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-import org.jboss.netty.handler.codec.frame.DelimiterBasedFrameDecoder;
-import org.jboss.netty.handler.codec.frame.Delimiters;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.string.StringDecoder;
-import org.jboss.netty.handler.codec.string.StringEncoder;
-
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Executors;
 
-public class TelnetServer extends SimpleChannelUpstreamHandler implements ChannelPipelineFactory,
-		ProtocolService
+import net.opentsdb.core.ProtocolService;
+
+import org.jboss.netty.bootstrap.ServerBootstrap;
+import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelFactory;
+import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.ChannelPipeline;
+import org.jboss.netty.channel.ChannelPipelineFactory;
+import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
+import org.jboss.netty.channel.group.ChannelGroup;
+import org.jboss.netty.channel.group.DefaultChannelGroup;
+import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
+import org.jboss.netty.handler.codec.frame.DelimiterBasedFrameDecoder;
+import org.jboss.netty.handler.codec.frame.Delimiters;
+import org.jboss.netty.handler.codec.string.StringEncoder;
+
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
+
+public class TelnetServer extends SimpleChannelUpstreamHandler implements ChannelPipelineFactory, ProtocolService, ChannelFactory
 {
 	private int m_port;
 	private Map<String, TelnetCommand> m_commands;
 	private UnknownCommand m_unknownCommand;
+	private ServerBootstrap bootstrap = null;
+	private ChannelFactory delegate = null;
+	private ChannelGroup channelGroup = new DefaultChannelGroup();
 
 	@Inject
 	public TelnetServer(@Named("opentsdb.telnetserver.port")int port,
@@ -59,17 +69,20 @@ public class TelnetServer extends SimpleChannelUpstreamHandler implements Channe
 	public void run()
 	{
 		// Configure the server.
-		ServerBootstrap bootstrap = new ServerBootstrap(
+		bootstrap = new ServerBootstrap(
 				new NioServerSocketChannelFactory(
 				Executors.newCachedThreadPool(),
 				Executors.newCachedThreadPool()));
+		
+		
 
 		// Configure the pipeline factory.
 		bootstrap.setPipelineFactory(this);
 		bootstrap.setOption("child.tcpNoDelay", true);
 		bootstrap.setOption("child.keepAlive", true);
 		bootstrap.setOption("reuseAddress", true);
-
+		delegate = bootstrap.getFactory();
+		bootstrap.setFactory(this);
 		// Bind and start to accept incoming connections.
 		bootstrap.bind(new InetSocketAddress(m_port));
 	}
@@ -90,6 +103,14 @@ public class TelnetServer extends SimpleChannelUpstreamHandler implements Channe
 		pipeline.addLast("handler", this);
 
 		return pipeline;
+	}
+	
+	/**
+	 * Stops the telnet server and releases its resources
+	 */
+	public void stop() {
+		channelGroup.close();
+		bootstrap.releaseExternalResources();
 	}
 
 	@Override
@@ -121,5 +142,34 @@ public class TelnetServer extends SimpleChannelUpstreamHandler implements Channe
 					+ " while serving " + pretty_message, e);
 			exceptions_caught.incrementAndGet();*/
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see org.jboss.netty.channel.ChannelFactory#newChannel(org.jboss.netty.channel.ChannelPipeline)
+	 */
+	@Override
+	public Channel newChannel(ChannelPipeline pipeline) {		
+		Channel channel = delegate.newChannel(pipeline);
+		channelGroup.add(channel);
+		return channel;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see org.jboss.netty.channel.ChannelFactory#releaseExternalResources()
+	 */
+	@Override
+	public void releaseExternalResources() {
+		delegate.releaseExternalResources();		
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see org.jboss.netty.channel.ChannelFactory#shutdown()
+	 */
+	@Override
+	public void shutdown() {
+		delegate.shutdown();
 	}
 }
