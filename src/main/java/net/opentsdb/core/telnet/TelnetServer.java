@@ -82,7 +82,7 @@ public class TelnetServer extends SimpleChannelUpstreamHandler implements Channe
 		bootstrap.setOption("child.keepAlive", true);
 		bootstrap.setOption("reuseAddress", true);
 		delegate = bootstrap.getFactory();
-		bootstrap.setFactory(this);
+		//bootstrap.setFactory(this);
 		// Bind and start to accept incoming connections.
 		bootstrap.bind(new InetSocketAddress(m_port));
 	}

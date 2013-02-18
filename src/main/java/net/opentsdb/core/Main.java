@@ -13,6 +13,7 @@
 package net.opentsdb.core;
 
 import com.google.inject.*;
+import com.google.inject.tools.jmx.Manager;
 import jcmdline.*;
 import net.opentsdb.core.http.WebServletModule;
 import net.opentsdb.core.telnet.TelnetServer;
@@ -51,9 +52,10 @@ public class Main
 			if (interfaces.contains(ProtocolService.class))
 				System.out.println(bindingClass);
 		}*/
-
+		Manager.manage("org.helios.guice", injector);
 		startTelnetListener(injector);
 		startWebServer(injector);
+		
 	}
 
 	public Injector createGuiceInjector() throws IOException

@@ -27,6 +27,8 @@ package net.opentsdb.core;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.sql.DataSource;
+
 import net.opentsdb.core.http.WebServletModule;
 import net.opentsdb.core.telnet.TelnetServer;
 
@@ -55,6 +57,10 @@ public class MainBean {
 	protected TelnetServer telnetServer = null;
 	/** The opentsdb2 web server */
 	protected Server webServer = null;
+	/** The target DataSource to use for H2 */
+	protected DataSource dataSource = null;
+	
+
 	/**
 	 * Starts the opentsdb2 engine
 	 * @throws Exception thrown on any exception
@@ -131,5 +137,12 @@ public class MainBean {
 		webServer.start();		
 	}
 	
+	/**
+	 * Sets the target DataSource to use for H2
+	 * @param dataSource an H2 data source
+	 */
+	public void setDataSource(DataSource dataSource) {
+		this.dataSource = dataSource;
+	}
 	
 }
