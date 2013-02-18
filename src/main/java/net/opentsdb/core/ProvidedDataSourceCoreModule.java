@@ -24,7 +24,6 @@
  */
 package net.opentsdb.core;
 
-import java.util.MissingResourceException;
 import java.util.Properties;
 
 import javax.sql.DataSource;
@@ -35,9 +34,9 @@ import net.opentsdb.core.telnet.GuiceCommandProvider;
 import net.opentsdb.core.telnet.PutCommand;
 import net.opentsdb.core.telnet.TelnetCommand;
 import net.opentsdb.core.telnet.TelnetServer;
+import net.opentsdb.datastore.h2.ProvidedDataSourceH2Datastore;
 
 import com.google.inject.AbstractModule;
-import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.name.Names;
 
@@ -67,27 +66,18 @@ public class ProvidedDataSourceCoreModule extends AbstractModule {
 	/**
 	 * {@inheritDoc}
 	 * @see com.google.inject.AbstractModule#configure()
-	 */
-	@SuppressWarnings("unchecked")
+	 */	
 	@Override
 	protected void configure() 	{
 		bind(TelnetServer.class).in(Singleton.class);
 		bind(TelnetCommand.class).annotatedWith(Names.named("put")).to(PutCommand.class);
 		bind(CommandProvider.class).to(GuiceCommandProvider.class);
-		
-		bind(Datastore.class).to(dsClass).in(Scopes.SINGLETON);
-		String dsClassName = m_props.getProperty(DATASTORE_CLASS_PROPERTY);
-		try
-		{
-			Class dsClass = Class.forName(dsClassName);
-			bind(Datastore.class).to(dsClass).in(Scopes.SINGLETON);
-		}
-		catch (ClassNotFoundException e)
-		{
-			throw new MissingResourceException("Unable to load Datastore class",
-					dsClassName, DATASTORE_CLASS_PROPERTY);
-		}
-
+//		ProvidedDataSourceH2Datastore datastore = null;
+//		try {
+//			datastore = new ProvidedDataSourceH2Datastore(this.dataSource);
+//		} catch (Exception ex) {
+//			throw new RuntimeException("Failed to create ProvidedDataSourceH2Datastore", ex);
+//		}
 		Names.bindProperties(binder(), m_props);
 	}
 	

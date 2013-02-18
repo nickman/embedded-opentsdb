@@ -24,11 +24,8 @@
  */
 package net.opentsdb.datastore.h2;
 
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,10 +36,8 @@ import java.util.TreeMap;
 
 import javax.sql.DataSource;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import net.opentsdb.core.DataPointSet;
+import net.opentsdb.core.MainBean;
 import net.opentsdb.core.datastore.CachedSearchResult;
 import net.opentsdb.core.datastore.Datastore;
 import net.opentsdb.core.datastore.DatastoreMetricQuery;
@@ -60,6 +55,9 @@ import net.opentsdb.datastore.h2.orm.TagValuesQuery;
 import net.opentsdb.datastore.h2.orm.TagsInQueryData;
 import net.opentsdb.datastore.h2.orm.TagsInQueryQuery;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * <p>Title: ProvidedDataSourceH2Datastore</p>
  * <p>Description: An extension of {@link H2Datastore} that uses an externally provided {@link DataSource}.</p> 
@@ -70,7 +68,7 @@ import net.opentsdb.datastore.h2.orm.TagsInQueryQuery;
 
 public class ProvidedDataSourceH2Datastore extends Datastore {
 	/** The provided datasource */
-	protected final DataSource dataSource;
+	protected final DataSource dataSource = MainBean.getDataSource();
 	/** Static class logger */
 	public static final Logger logger = LoggerFactory.getLogger(ProvidedDataSourceH2Datastore.class);
 	/** Connection that holds the database open */
@@ -79,60 +77,17 @@ public class ProvidedDataSourceH2Datastore extends Datastore {
 	
 	/**
 	 * Creates a new ProvidedDataSourceH2Datastore
-	 * @param dataSource The provided datasource
 	 * @throws DatastoreException thrown on errors setting up the datastore
 	 */
-	public ProvidedDataSourceH2Datastore(DataSource dataSource) throws DatastoreException {
-		this.dataSource = dataSource;
+	public ProvidedDataSourceH2Datastore() throws DatastoreException {		
 		try {
 			m_holdConnection = this.dataSource.getConnection();
-			GenOrmDataSource.setDataSource(new DSEnvelope(ds));
-
-			try
-			{
-				if (createDB)
-					createDatabase(ds);
-			}
-			catch (SQLException e)
-			{
-				//TODO
-				System.out.println("Oh Crap");
-				e.printStackTrace();
-			}
-			catch (IOException e)
-			{
-				//TODO
-				System.out.println("double oh crap");
-				e.printStackTrace();
-			}
-			
+			GenOrmDataSource.setDataSource(new DSEnvelope(this.dataSource));
 		} catch (Exception ex) {
 			throw new DatastoreException("Failed to initialize ProvidedDataSourceH2Datastore", ex);
 		}
 	}
 	
-	private void createDatabase(DataSource ds) throws IOException, SQLException
-	{
-		logger.info("Creating DB");
-		m_holdConnection = ds.getConnection();
-		m_holdConnection.setAutoCommit(false);
-
-		StringBuilder sb = new StringBuilder();
-		InputStreamReader reader = new InputStreamReader(getClass().getClassLoader()
-				.getResourceAsStream("net/opentsdb/datastore/h2/orm/create.sql"));
-
-		int ch;
-		while ((ch = reader.read()) != -1)
-			sb.append((char) ch);
-
-		String[] tableCommands = sb.toString().split(";");
-
-		Statement s = m_holdConnection.createStatement();
-		for (String command : tableCommands)
-			s.execute(command);
-
-		m_holdConnection.commit();
-	}
 
 	@Override
 	public void close()

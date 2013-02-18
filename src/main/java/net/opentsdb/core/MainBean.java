@@ -36,6 +36,7 @@ import org.eclipse.jetty.server.Server;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Module;
 
 /**
  * <p>Title: MainBean</p>
@@ -58,8 +59,12 @@ public class MainBean {
 	/** The opentsdb2 web server */
 	protected Server webServer = null;
 	/** The target DataSource to use for H2 */
-	protected DataSource dataSource = null;
+	protected static DataSource dataSource = null;
 	
+	
+	public static DataSource getDataSource() {
+		return dataSource;
+	}
 
 	/**
 	 * Starts the opentsdb2 engine
@@ -114,7 +119,17 @@ public class MainBean {
 	 * @return the guice injector
 	 */
 	public Injector createGuiceInjector()  {
-		Injector injector = Guice.createInjector(new CoreModule(configProperties), new WebServletModule());
+		CoreModule module = new CoreModule(configProperties);
+		//Module module = new ProvidedDataSourceCoreModule(configProperties, dataSource);
+		Injector injector = Guice.createInjector(module, new WebServletModule());
+		
+//		ProvidedDataSourceH2Datastore datastore = null;
+//		try {
+//			datastore = new ProvidedDataSourceH2Datastore(this.dataSource);
+//		} catch (Exception ex) {
+//			throw new RuntimeException("Failed to create ProvidedDataSourceH2Datastore", ex);
+//		}		
+//		injector.getMembersInjector(Datastore.class).injectMembers(datastore);
 		return (injector);
 	}
 	

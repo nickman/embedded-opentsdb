@@ -9,3 +9,4 @@ build/*
 out/*
 dependency.txt
 /build
+/.tablesawcache
