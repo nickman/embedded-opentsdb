@@ -10,3 +10,8 @@ out/*
 dependency.txt
 /build
 /.tablesawcache
+/dependency-reduced-pom.xml
+/.settings
+/target
+/.classpath
+/.project
