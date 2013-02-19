@@ -27,6 +27,22 @@ public class DataPointSet
 		m_tags = new TreeMap<String, String>();
 		m_dataPoints = new ArrayList<DataPoint>();
 	}
+	
+	public DataPointSet(String name, Map<String, String> tags)
+	{
+		m_name = name;
+		m_tags = new TreeMap<String, String>(tags);
+		m_dataPoints = new ArrayList<DataPoint>();
+	}
+	
+	public DataPointSet(String name, Map<String, String> tags, long timestamp, long value)
+	{
+		m_name = name;
+		m_tags = new TreeMap<String, String>(tags);
+		m_dataPoints = new ArrayList<DataPoint>(Arrays.asList(new DataPoint(timestamp, value)));
+	}
+	
+	
 
 	public void addTag(String name, String value)
 	{

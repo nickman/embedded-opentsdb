@@ -68,11 +68,9 @@ import org.slf4j.LoggerFactory;
 
 public class ProvidedDataSourceH2Datastore extends Datastore {
 	/** The provided datasource */
-	protected final DataSource dataSource = MainBean.getDataSource();
+	protected DataSource dataSource = null;
 	/** Static class logger */
 	public static final Logger logger = LoggerFactory.getLogger(ProvidedDataSourceH2Datastore.class);
-	/** Connection that holds the database open */
-	private Connection m_holdConnection;  
 	
 	
 	/**
@@ -80,27 +78,27 @@ public class ProvidedDataSourceH2Datastore extends Datastore {
 	 * @throws DatastoreException thrown on errors setting up the datastore
 	 */
 	public ProvidedDataSourceH2Datastore() throws DatastoreException {		
-		try {
-			m_holdConnection = this.dataSource.getConnection();
-			GenOrmDataSource.setDataSource(new DSEnvelope(this.dataSource));
-		} catch (Exception ex) {
-			throw new DatastoreException("Failed to initialize ProvidedDataSourceH2Datastore", ex);
-		}
+		super();
+	}
+	
+	/**
+	 * Starts this data store
+	 */
+	public void start() {
+		GenOrmDataSource.setDataSource(new DSEnvelope(dataSource));
+	}
+	
+	/**
+	 * Sets the DataSource to be used by this data store
+	 * @param dataSource the DataSource to be used by this data store
+	 */
+	public void setDataSource(DataSource dataSource) {
+		if(dataSource==null) throw new IllegalArgumentException("Passed datasource was null", new Throwable());
+		this.dataSource = dataSource;
 	}
 	
 
-	@Override
-	public void close()
-	{
-		try
-		{
-			m_holdConnection.close();
-		}
-		catch (SQLException e)
-		{
-			logger.error("Failed closing last connection:", e);
-		}
-	}
+
 
 	public void putDataPoints(DataPointSet dps)
 	{
@@ -234,6 +232,16 @@ public class ProvidedDataSourceH2Datastore extends Datastore {
 		}
 
 		return (sb.toString());
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @see net.opentsdb.core.datastore.Datastore#close()
+	 */
+	@Override
+	public void close() throws InterruptedException, DatastoreException {
+		// TODO Auto-generated method stub
+		
 	}
 	
 
