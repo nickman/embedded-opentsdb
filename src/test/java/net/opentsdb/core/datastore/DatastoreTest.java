@@ -12,20 +12,21 @@
 // see <http://www.gnu.org/licenses/>
 package net.opentsdb.core.datastore;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPointSet;
 import net.opentsdb.core.exception.DatastoreException;
 import net.opentsdb.core.exception.TsdbException;
 import net.opentsdb.core.exception.UnknownAggregator;
 import net.opentsdb.testing.TaggedDataPointsImpl;
+
 import org.junit.Test;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
 
 public class DatastoreTest
 {
@@ -199,6 +200,15 @@ public class DatastoreTest
 			groups.add(group2);
 
 			return groups;
+		}
+
+		/**
+		 * {@inheritDoc}
+		 * @see net.opentsdb.core.datastore.DatastoreMXBean#getDataStoreURL()
+		 */
+		@Override
+		public String getDataStoreURL() {
+			return "Test";
 		}
 
 

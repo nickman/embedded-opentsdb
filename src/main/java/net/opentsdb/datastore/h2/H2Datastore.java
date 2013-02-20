@@ -37,12 +37,22 @@ public class H2Datastore extends Datastore
 {
 	public static final Logger logger = LoggerFactory.getLogger(H2Datastore.class);
 	public static final String DATABASE_PATH_PROPERTY = "opentsdb.datastore.h2.database_path";
-
+	private String dbUrl = null;
 	private Connection m_holdConnection;  //Connection that holds the database open
+	
+	/**
+	 * {@inheritDoc}
+	 * @see net.opentsdb.core.datastore.DatastoreMXBean#getDataStoreURL()
+	 */
+	@Override
+	public String getDataStoreURL() {
+		return dbUrl;
+	}
 
 	@Inject
 	public H2Datastore(@Named(DATABASE_PATH_PROPERTY) String dbPath) throws DatastoreException
 	{
+		super();
 		logger.info("Starting H2 database in " + dbPath);
 		boolean createDB = false;
 
@@ -60,6 +70,7 @@ public class H2Datastore extends Datastore
 		{
 			if (createDB)
 				createDatabase(ds);
+			started.set(true);
 		}
 		catch (SQLException e)
 		{
@@ -96,11 +107,13 @@ public class H2Datastore extends Datastore
 			s.execute(command);
 
 		m_holdConnection.commit();
+		dbUrl =  m_holdConnection.getMetaData().getURL();
 	}
 
 	@Override
-	public void close()
+	public void close() throws DatastoreException, InterruptedException
 	{
+		super.close();
 		try
 		{
 			m_holdConnection.close();
@@ -108,7 +121,7 @@ public class H2Datastore extends Datastore
 		catch (SQLException e)
 		{
 			logger.error("Failed closing last connection:", e);
-		}
+		}		
 	}
 
 	public void putDataPoints(DataPointSet dps)

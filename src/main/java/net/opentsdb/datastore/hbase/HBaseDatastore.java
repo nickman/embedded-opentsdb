@@ -22,6 +22,8 @@ public class HBaseDatastore extends Datastore
 	public static final String AUTO_CREATE_METRIC_PROPERTY = "opentsdb.datastore.hbase.auto_create_metrics";
 
 	private TSDB tsdb;
+	private HBaseClient hbaseClient;
+	private final String hbaseUrl;
 
 	@Inject
 	public HBaseDatastore(@Named(TIMESERIES_TABLE_PROPERTY) String timeSeriesTable,
@@ -30,12 +32,17 @@ public class HBaseDatastore extends Datastore
 	                      @Named(ZOO_KEEPER_BASE_PROPERTY) String zkBase,
 	                      @Named(AUTO_CREATE_METRIC_PROPERTY) boolean autoCreateMetrics) throws DatastoreException
 	{
-		HBaseClient hbaseClient;
-
-		if ((zkBase != null) && (!zkBase.equals("")))
+		
+		super();
+		if ((zkBase != null) && (!zkBase.equals(""))) {
 			hbaseClient = new HBaseClient(zkQuorum, zkBase);
-		else
+			hbaseUrl = zkQuorum + "/" + zkBase;
+		} else {
 			hbaseClient = new HBaseClient(zkQuorum);
+			hbaseUrl = zkQuorum;
+		}
+		
+		
 
 		//hbaseClient.setFlushInterval((short)0);
 
@@ -43,7 +50,16 @@ public class HBaseDatastore extends Datastore
 			System.setProperty("tsd.core.auto_create_metrics", "true");
 
 		tsdb = new TSDB(hbaseClient, timeSeriesTable, uidTable);
-
+		started.set(true);
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see net.opentsdb.core.datastore.DatastoreMXBean#getDataStoreURL()
+	 */
+	@Override
+	public String getDataStoreURL() {
+		return hbaseUrl;
 	}
 
 
@@ -140,8 +156,9 @@ public class HBaseDatastore extends Datastore
 	}
 
 	@Override
-	public void close() throws DatastoreException
+	public void close() throws DatastoreException, InterruptedException
 	{
+		super.close();
 		try
 		{
 			tsdb.shutdown().join();

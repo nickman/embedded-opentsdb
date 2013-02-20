@@ -245,6 +245,15 @@ public class MetricsResourceTest
 
 	public static class TestDatastore extends Datastore
 	{
+		
+		/**
+		 * {@inheritDoc}
+		 * @see net.opentsdb.core.datastore.DatastoreMXBean#getDataStoreURL()
+		 */
+		@Override
+		public String getDataStoreURL() {
+			return "Test";
+		}		
 
 		protected TestDatastore() throws DatastoreException
 		{

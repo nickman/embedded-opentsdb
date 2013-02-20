@@ -116,7 +116,7 @@ public class CassandraDatastoreTest extends DatastoreTestHelper
 	}
 
 	@AfterClass
-	public static void closeDatastore() throws InterruptedException
+	public static void closeDatastore() throws InterruptedException, DatastoreException
 	{
 		s_datastore.close();
 	}

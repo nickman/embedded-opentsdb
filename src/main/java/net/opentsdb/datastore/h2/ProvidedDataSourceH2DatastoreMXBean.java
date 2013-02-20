@@ -24,56 +24,16 @@
  */
 package net.opentsdb.datastore.h2;
 
+import net.opentsdb.core.datastore.DatastoreMXBean;
+
 /**
- * <p>Title: ProvidedDataSourceH2DatastoreMBean</p>
+ * <p>Title: ProvidedDataSourceH2DatastoreMXBean</p>
  * <p>Description: JMX MBean interface for {@link ProvidedDataSourceH2Datastore}</p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>net.opentsdb.datastore.h2.ProvidedDataSourceH2DatastoreMBean</code></p>
+ * <p><code>net.opentsdb.datastore.h2.ProvidedDataSourceH2DatastoreMXBean</code></p>
  */
 
-public interface ProvidedDataSourceH2DatastoreMBean {
-	/**
-	 * Returns the number of data points inserted.
-	 * @return the number of data points inserted.
-	 */
-	public long getDataPointCount();
-	
-	/**
-	 * Returns the data-store's database URL
-	 * @return the data-store's database URL
-	 */
-	public String getDataStoreURL();
-	
-	/**
-	 * Indicates if this data store is started
-	 * @return true if this data store is started, false otherwise
-	 */
-	public boolean isStarted();
-	
-	/**
-	 * Returns the number of enqueued datapoints
-	 * @return the number of enqueued datapoints
-	 */
-	public long getEnqueuedCount();
-	
-	/**
-	 * Returns the number of dequeued datapoints
-	 * @return the number of dequeued datapoints
-	 */
-	public long getDequeuedCount();
-	
-	/**
-	 * Returns the number of dropped datapoints
-	 * @return the number of dropped datapoints
-	 */
-	public long getDroppedCount();
-	
-	/**
-	 * Returns the current queue size
-	 * @return the current queue size
-	 */
-	public int getQueueSize();
-	
+public interface ProvidedDataSourceH2DatastoreMXBean extends DatastoreMXBean {
 	
 }

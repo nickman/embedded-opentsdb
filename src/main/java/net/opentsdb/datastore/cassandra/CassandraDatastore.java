@@ -84,6 +84,7 @@ public class CassandraDatastore extends Datastore
 			@Named(ROW_WIDTH_PROPERTY)long rowWidth,
 			@Named(ROW_READ_SIZE_PROPERTY)int rowReadSize) throws DatastoreException
 	{
+		super();
 		m_rowWidth = rowWidth;
 		m_rowReadSize = rowReadSize;
 
@@ -150,6 +151,7 @@ public class CassandraDatastore extends Datastore
 						putDataPoints(dps);
 					}
 				});
+		started.set(true);
 	}
 
 	private void createSchema(int replicationFactor)
@@ -174,10 +176,14 @@ public class CassandraDatastore extends Datastore
 
 
 	@Override
-	public void close() throws InterruptedException
+	public void close() throws InterruptedException, DatastoreException
 	{
-		m_dataPointWriteBuffer.close();
-		m_rowKeyWriteBuffer.close();
+		super.close();
+		try {
+			m_dataPointWriteBuffer.close();
+			m_rowKeyWriteBuffer.close();
+		} catch (Exception ex) {/*No Op*/}
+		
 	}
 
 	@Override
@@ -242,6 +248,7 @@ public class CassandraDatastore extends Datastore
 					m_dataPointWriteBuffer.addData(rowKey, dp.getTimestamp(),
 							new LongOrDouble(dp.getDoubleValue()), dp.getTimestamp());
 				}
+				dataPointCounter.incrementAndGet();
 			}
 		}
 		catch (Exception e)
@@ -385,5 +392,15 @@ public class CassandraDatastore extends Datastore
 	private long calculateRowTime(long timestamp)
 	{
 		return (timestamp - (timestamp % m_rowWidth));
+	}
+
+
+	/**
+	 * {@inheritDoc}
+	 * @see net.opentsdb.core.datastore.DatastoreMXBean#getDataStoreURL()
+	 */
+	@Override
+	public String getDataStoreURL() {
+		return m_cluster.describeClusterName();
 	}
 }

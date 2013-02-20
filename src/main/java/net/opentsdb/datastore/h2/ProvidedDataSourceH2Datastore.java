@@ -71,17 +71,15 @@ import org.apache.log4j.Logger;
  * <p><code>net.opentsdb.datastore.h2.ProvidedDataSourceH2Datastore</code></p>
  */
 
-public class ProvidedDataSourceH2Datastore extends Datastore implements ProvidedDataSourceH2DatastoreMBean, Runnable {
+public class ProvidedDataSourceH2Datastore extends Datastore implements ProvidedDataSourceH2DatastoreMXBean, Runnable {
 	/** The provided datasource */
 	protected DataSource dataSource = null;
 	/** Static class logger */
 	public static final Logger logger = Logger.getLogger(ProvidedDataSourceH2Datastore.class);
 
-	/** Datapoint insertion counter */
-	protected final AtomicLong dataPointCounter = new AtomicLong(0L);
 	
-	protected Thread queueWorker = null;
-	protected static final AtomicInteger serial = new AtomicInteger();
+	
+	
 	
 	/**
 	 * Creates a new ProvidedDataSourceH2Datastore
@@ -114,31 +112,8 @@ public class ProvidedDataSourceH2Datastore extends Datastore implements Provided
 		//registerMBean();
 		GenOrmDataSource.setDataSource(new DSEnvelope(dataSource));
 		started.set(true);
-		queueWorker = new Thread(this, "H2DataPointWriter#" + serial.incrementAndGet());
-		queueWorker.setDaemon(true);
-		queueWorker.start();
 	}
 	
-	public void run() {
-		while(isStarted()) {
-			try {
-				Collection<DataPointSet> drain = new HashSet<DataPointSet>(100);
-				DataPointSet dps = null;
-				do {
-					dps = dataPointQueue.poll(500, TimeUnit.MILLISECONDS);
-					if(dps!=null) drain.add(dps);
-				} while(dps!=null && drain.size()<100);
-				if(!drain.isEmpty()) {
-					dequeued.addAndGet(drain.size());
-					putDataPoints(drain);
-				}
-			} catch (InterruptedException ief) {
-				Thread.interrupted();
-			} catch (Exception ex) {
-				logger.error("Failed to write datapoint set", ex);						
-			}
-		}
-	}
 	
 	/**
 	 * Sets the DataSource to be used by this data store
@@ -162,7 +137,7 @@ public class ProvidedDataSourceH2Datastore extends Datastore implements Provided
 	
 	/**
 	 * {@inheritDoc}
-	 * @see net.opentsdb.datastore.h2.ProvidedDataSourceH2DatastoreMBean#getDataStoreURL()
+	 * @see net.opentsdb.datastore.h2.ProvidedDataSourceH2DatastoreMXBean#getDataStoreURL()
 	 */
 	public String getDataStoreURL() {
 		Connection conn = null;
@@ -253,13 +228,7 @@ public class ProvidedDataSourceH2Datastore extends Datastore implements Provided
 
 			
 	
-	/**
-	 * Returns the number of data points inserted.
-	 * @return the number of data points inserted.
-	 */
-	public long getDataPointCount() {
-		return dataPointCounter.get();
-	}
+
 
 	@Override
 	public Iterable<String> getMetricNames()
@@ -358,16 +327,6 @@ public class ProvidedDataSourceH2Datastore extends Datastore implements Provided
 		return (sb.toString());
 	}
 
-	/**
-	 * {@inheritDoc}
-	 * @see net.opentsdb.core.datastore.Datastore#close()
-	 */
-	@Override
-	public void close() throws InterruptedException, DatastoreException {
-		started.set(false);		
-		queueWorker.interrupt();
-		queueWorker = null;
-	}
 	
 
 }

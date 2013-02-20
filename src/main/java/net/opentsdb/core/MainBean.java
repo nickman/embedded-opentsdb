@@ -27,8 +27,7 @@ package net.opentsdb.core;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import javax.sql.DataSource;
-
+import net.opentsdb.core.datastore.Datastore;
 import net.opentsdb.core.http.WebServletModule;
 import net.opentsdb.core.telnet.TelnetServer;
 
@@ -36,7 +35,6 @@ import org.eclipse.jetty.server.Server;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.Module;
 
 /**
  * <p>Title: MainBean</p>
@@ -58,13 +56,8 @@ public class MainBean {
 	protected TelnetServer telnetServer = null;
 	/** The opentsdb2 web server */
 	protected Server webServer = null;
-	/** The target DataSource to use for H2 */
-	protected static DataSource dataSource = null;
 	
 	
-	public static DataSource getDataSource() {
-		return dataSource;
-	}
 
 	/**
 	 * Starts the opentsdb2 engine
@@ -115,21 +108,20 @@ public class MainBean {
 	}
 	
 	/**
+	 * Returns the datastore
+	 * @return the datastore
+	 */
+	public Datastore getDataStore() {
+		return injector.getInstance(Datastore.class);
+	}
+	
+	/**
 	 * Creates the guice injector using the configured properties
 	 * @return the guice injector
 	 */
 	public Injector createGuiceInjector()  {
 		CoreModule module = new CoreModule(configProperties);
-		//Module module = new ProvidedDataSourceCoreModule(configProperties, dataSource);
 		Injector injector = Guice.createInjector(module, new WebServletModule());
-		
-//		ProvidedDataSourceH2Datastore datastore = null;
-//		try {
-//			datastore = new ProvidedDataSourceH2Datastore(this.dataSource);
-//		} catch (Exception ex) {
-//			throw new RuntimeException("Failed to create ProvidedDataSourceH2Datastore", ex);
-//		}		
-//		injector.getMembersInjector(Datastore.class).injectMembers(datastore);
 		return (injector);
 	}
 	
@@ -139,7 +131,6 @@ public class MainBean {
 	public void startTelnetListener() {
 		telnetServer = injector.getInstance(TelnetServer.class);
 		telnetServer.run();
-		//System.out.println("Done run");
 	}
 
 	/**
@@ -148,16 +139,8 @@ public class MainBean {
 	 */
 	public void startWebServer() throws Exception 	{
 		webServer = injector.getInstance(Server.class);
-		//System.out.println("Starting web server");
 		webServer.start();		
 	}
 	
-	/**
-	 * Sets the target DataSource to use for H2
-	 * @param dataSource an H2 data source
-	 */
-	public void setDataSource(DataSource dataSource) {
-		this.dataSource = dataSource;
-	}
 	
 }

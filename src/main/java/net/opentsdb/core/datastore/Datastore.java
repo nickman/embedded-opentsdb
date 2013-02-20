@@ -23,12 +23,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import net.opentsdb.core.DataPoint;
@@ -44,11 +47,23 @@ import net.opentsdb.core.exception.DatastoreException;
 import net.opentsdb.core.exception.UnknownAggregator;
 import net.opentsdb.util.TournamentTree;
 
-public abstract class Datastore
-{
+import org.apache.log4j.Logger;
+
+/**
+ * <p>Title: Datastore</p>
+ * <p>Description: </p> 
+ * <p>Company: Helios Development Group LLC</p>
+ * @author Whitehead (nwhitehead AT heliosdev DOT org)
+ * <p><code>net.opentsdb.core.datastore.Datastore</code></p>
+ */
+public abstract class Datastore implements DatastoreMXBean, Runnable {
+
 	private final Map<String, Aggregator> aggregators = new HashMap<String, Aggregator>();
 	MessageDigest messageDigest;
 	protected final AtomicBoolean started = new AtomicBoolean(false);
+	/** Instance logger */
+	public final Logger logger = Logger.getLogger(getClass());
+
 	protected final BlockingQueue<DataPointSet> dataPointQueue = new ArrayBlockingQueue<DataPointSet>(1000, false);
 	
 	/** The enqueued count */
@@ -57,31 +72,64 @@ public abstract class Datastore
 	protected final AtomicLong dequeued = new AtomicLong(0);
 	/** The drop count */
 	protected final AtomicLong dropped = new AtomicLong(0);
+	/** The datapoints insertion count */
+	/** Datapoint insertion counter */
+	protected final AtomicLong dataPointCounter = new AtomicLong(0L);
+
+	/** The queue worker thread */
+	protected Thread queueWorker = null;
+	/** Serial number generator */
+	protected static final AtomicInteger serial = new AtomicInteger();
 	
 	
 	/**
-	 * Indicates if this data store is started
-	 * @return true if this data store is started, false otherwise
+	 * {@inheritDoc}
+	 * @see net.opentsdb.core.datastore.DatastoreMXBean#isStarted()
 	 */
 	public boolean isStarted() {
 		return started.get();
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 * @see net.opentsdb.core.datastore.DatastoreMXBean#getEnqueuedCount()
+	 */
 	public long getEnqueuedCount() {
 		return enqueued.get();
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 * @see net.opentsdb.core.datastore.DatastoreMXBean#getDequeuedCount()
+	 */
 	public long getDequeuedCount() {
 		return dequeued.get();
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 * @see net.opentsdb.core.datastore.DatastoreMXBean#getDroppedCount()
+	 */
 	public long getDroppedCount() {
 		return dropped.get();
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 * @see net.opentsdb.core.datastore.DatastoreMXBean#getQueueSize()
+	 */
 	public int getQueueSize() {
 		return dataPointQueue.size();
 	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see net.opentsdb.core.datastore.DatastoreMXBean#getDataPointCount()
+	 */
+	public long getDataPointCount() {
+		return dataPointCounter.get();
+	}
+	
 
 	public void queueDataPoints(DataPointSet dps) {
 		if(dps!=null) {
@@ -93,9 +141,49 @@ public abstract class Datastore
 		}
 	}
 
+	/**
+	 * Puts a collection of datapoints to the datastore.
+	 * By default, just delegates to {@link #putDataPoints(DataPointSet)}.
+	 * @param dpColl A collection o datapoints
+	 */
 	public void putDataPoints(Collection<DataPointSet> dpColl) {
-		/* No Op */
+		if(dpColl!=null) {
+			for(DataPointSet dps: dpColl) {
+				try {
+					putDataPoints(dps);
+				} catch (DatastoreException e) {
+					dropped.incrementAndGet();
+					e.printStackTrace();
+				}
+			}
+		}
 	}
+	
+	
+	public void run() {
+		while(!isStarted()) {
+			Thread.currentThread().yield();
+		}
+		while(isStarted()) {
+			try {
+				Collection<DataPointSet> drain = new HashSet<DataPointSet>(100);
+				DataPointSet dps = null;
+				do {
+					dps = dataPointQueue.poll(500, TimeUnit.MILLISECONDS);
+					if(dps!=null) drain.add(dps);
+				} while(dps!=null && drain.size()<100);
+				if(!drain.isEmpty()) {
+					dequeued.addAndGet(drain.size());
+					putDataPoints(drain);
+				}
+			} catch (InterruptedException ief) {
+				Thread.interrupted();
+			} catch (Exception ex) {
+				logger.error("Failed to write datapoint set", ex);						
+			}
+		}
+	}
+	
 	
 	protected Datastore() throws DatastoreException
 	{
@@ -114,12 +202,21 @@ public abstract class Datastore
 		aggregators.put("avg", new AvgAggregator());
 		aggregators.put("dev", new StdAggregator());
 		aggregators.put("none", new NoneAggregator());
+		queueWorker = new Thread(this, "DataPointWriter#" + serial.incrementAndGet());
+		queueWorker.setDaemon(true);
+		queueWorker.start();
+		System.out.println("\n\t#####################\n\tStarted DataPointWriterThread\n\t#####################\n");
+
 	}
 
 	/**
 	 * Close the datastore
 	 */
-	public abstract void close() throws InterruptedException, DatastoreException;
+	public void close() throws InterruptedException, DatastoreException {
+		started.set(false);
+		queueWorker.interrupt();
+		queueWorker = null;
+	}
 
 	public abstract void putDataPoints(DataPointSet dps) throws DatastoreException;
 
