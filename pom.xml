@@ -265,7 +265,6 @@
 					<target>1.6</target>
 				</configuration>
 			</plugin>
-			<!-- 
 			<plugin>
 	        <groupId>org.apache.maven.plugins</groupId>
 	        <artifactId>maven-shade-plugin</artifactId>
@@ -279,20 +278,32 @@
 	            <configuration>
 	              <artifactSet>
 	                <excludes>
-	                  <exclude>org.slf4j:log4j-over-slf4j</exclude>	
-	                  <exclude>ch.qos.logback:*</exclude>	 	                                                
+	                  <exclude>org.javassist:*</exclude>	
+	                  <exclude>org.springframework:*</exclude>
+	                  <exclude>junit:*</exclude>
+	                  <exclude>io.netty:*</exclude>
+	                  <exclude>com.h2database:*</exclude>
+	                  <exclude>com.google.code.findbugs:*</exclude>
+	                  <exclude>log4j:*</exclude>
+	                  
+	                  <exclude>javax.servlet:servlet-api:jar:2.5</exclude>
+	                  <exclude>com.sun.xml.bind:*</exclude>
+	                  <!-- 
+	                  <exclude>:*</exclude>
+	                  <exclude>:*</exclude>
+	                  <exclude>:*</exclude>
+	                  <exclude>:*</exclude>
+	                  <exclude>:*</exclude>
+	                  <exclude>:*</exclude>
+	                  -->                                                
 
 	                </excludes>
 	              </artifactSet>
-					<mainClass>org.helios.apmrouter.APMRouter</mainClass>
 				    <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 				    <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>	                      					
 					<includePluginDependencies>false</includePluginDependencies>
 				<transformers>
 	                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-	                  <manifestEntries>
-	                  	<Main-Class>org.helios.apmrouter.APMRouter</Main-Class>
-	                  </manifestEntries>
 	                </transformer>
 	                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
 	                  <resource>META-INF/spring.handlers</resource>
@@ -308,7 +319,6 @@
 	          </execution>
 	        </executions>
 	      </plugin>
-	      -->	     
 		</plugins>
 	</build>
 </project>
