@@ -44,4 +44,36 @@ public interface ProvidedDataSourceH2DatastoreMBean {
 	 * @return the data-store's database URL
 	 */
 	public String getDataStoreURL();
+	
+	/**
+	 * Indicates if this data store is started
+	 * @return true if this data store is started, false otherwise
+	 */
+	public boolean isStarted();
+	
+	/**
+	 * Returns the number of enqueued datapoints
+	 * @return the number of enqueued datapoints
+	 */
+	public long getEnqueuedCount();
+	
+	/**
+	 * Returns the number of dequeued datapoints
+	 * @return the number of dequeued datapoints
+	 */
+	public long getDequeuedCount();
+	
+	/**
+	 * Returns the number of dropped datapoints
+	 * @return the number of dropped datapoints
+	 */
+	public long getDroppedCount();
+	
+	/**
+	 * Returns the current queue size
+	 * @return the current queue size
+	 */
+	public int getQueueSize();
+	
+	
 }

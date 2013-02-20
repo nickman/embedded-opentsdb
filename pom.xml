@@ -265,6 +265,12 @@
 					<target>1.6</target>
 				</configuration>
 			</plugin>
+			<!-- 
+				===========================================================================
+				Shade Plugin to create a one jar artifact
+				===========================================================================
+			 -->
+			 <!-- 
 			<plugin>
 	        <groupId>org.apache.maven.plugins</groupId>
 	        <artifactId>maven-shade-plugin</artifactId>
@@ -288,15 +294,6 @@
 	                  
 	                  <exclude>javax.servlet:servlet-api:jar:2.5</exclude>
 	                  <exclude>com.sun.xml.bind:*</exclude>
-	                  <!-- 
-	                  <exclude>:*</exclude>
-	                  <exclude>:*</exclude>
-	                  <exclude>:*</exclude>
-	                  <exclude>:*</exclude>
-	                  <exclude>:*</exclude>
-	                  <exclude>:*</exclude>
-	                  -->                                                
-
 	                </excludes>
 	              </artifactSet>
 				    <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
@@ -319,6 +316,7 @@
 	          </execution>
 	        </executions>
 	      </plugin>
+	      -->
 		</plugins>
 	</build>
 </project>

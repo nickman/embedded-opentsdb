@@ -13,26 +13,90 @@
 package net.opentsdb.core.datastore;
 
 
-import net.opentsdb.core.DataPoint;
-import net.opentsdb.core.DataPointSet;
-import net.opentsdb.core.aggregator.*;
-import net.opentsdb.core.exception.DatastoreException;
-import net.opentsdb.core.exception.UnknownAggregator;
-import net.opentsdb.util.TournamentTree;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import net.opentsdb.core.DataPoint;
+import net.opentsdb.core.DataPointSet;
+import net.opentsdb.core.aggregator.Aggregator;
+import net.opentsdb.core.aggregator.AvgAggregator;
+import net.opentsdb.core.aggregator.MaxAggregator;
+import net.opentsdb.core.aggregator.MinAggregator;
+import net.opentsdb.core.aggregator.NoneAggregator;
+import net.opentsdb.core.aggregator.StdAggregator;
+import net.opentsdb.core.aggregator.SumAggregator;
+import net.opentsdb.core.exception.DatastoreException;
+import net.opentsdb.core.exception.UnknownAggregator;
+import net.opentsdb.util.TournamentTree;
 
 public abstract class Datastore
 {
 	private final Map<String, Aggregator> aggregators = new HashMap<String, Aggregator>();
 	MessageDigest messageDigest;
+	protected final AtomicBoolean started = new AtomicBoolean(false);
+	protected final BlockingQueue<DataPointSet> dataPointQueue = new ArrayBlockingQueue<DataPointSet>(1000, false);
+	
+	/** The enqueued count */
+	protected final AtomicLong enqueued = new AtomicLong(0);
+	/** The dequeued count */
+	protected final AtomicLong dequeued = new AtomicLong(0);
+	/** The drop count */
+	protected final AtomicLong dropped = new AtomicLong(0);
+	
+	
+	/**
+	 * Indicates if this data store is started
+	 * @return true if this data store is started, false otherwise
+	 */
+	public boolean isStarted() {
+		return started.get();
+	}
+	
+	public long getEnqueuedCount() {
+		return enqueued.get();
+	}
+	
+	public long getDequeuedCount() {
+		return dequeued.get();
+	}
+	
+	public long getDroppedCount() {
+		return dropped.get();
+	}
+	
+	public int getQueueSize() {
+		return dataPointQueue.size();
+	}
 
+	public void queueDataPoints(DataPointSet dps) {
+		if(dps!=null) {
+			if(dataPointQueue.offer(dps)) {
+				enqueued.incrementAndGet();
+			} else {
+				dropped.incrementAndGet();
+			}
+		}
+	}
+
+	public void putDataPoints(Collection<DataPointSet> dpColl) {
+		/* No Op */
+	}
+	
 	protected Datastore() throws DatastoreException
 	{
 		try

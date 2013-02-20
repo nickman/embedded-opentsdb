@@ -28,17 +28,19 @@ import java.lang.management.ManagementFactory;
 import java.sql.Connection;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.management.ObjectName;
 import javax.sql.DataSource;
-
-import org.apache.log4j.Logger;
 
 import net.opentsdb.core.DataPointSet;
 import net.opentsdb.core.datastore.CachedSearchResult;
@@ -58,6 +60,8 @@ import net.opentsdb.datastore.h2.orm.TagValuesQuery;
 import net.opentsdb.datastore.h2.orm.TagsInQueryData;
 import net.opentsdb.datastore.h2.orm.TagsInQueryQuery;
 
+import org.apache.log4j.Logger;
+
 
 /**
  * <p>Title: ProvidedDataSourceH2Datastore</p>
@@ -67,7 +71,7 @@ import net.opentsdb.datastore.h2.orm.TagsInQueryQuery;
  * <p><code>net.opentsdb.datastore.h2.ProvidedDataSourceH2Datastore</code></p>
  */
 
-public class ProvidedDataSourceH2Datastore extends Datastore implements ProvidedDataSourceH2DatastoreMBean {
+public class ProvidedDataSourceH2Datastore extends Datastore implements ProvidedDataSourceH2DatastoreMBean, Runnable {
 	/** The provided datasource */
 	protected DataSource dataSource = null;
 	/** Static class logger */
@@ -75,6 +79,9 @@ public class ProvidedDataSourceH2Datastore extends Datastore implements Provided
 
 	/** Datapoint insertion counter */
 	protected final AtomicLong dataPointCounter = new AtomicLong(0L);
+	
+	protected Thread queueWorker = null;
+	protected static final AtomicInteger serial = new AtomicInteger();
 	
 	/**
 	 * Creates a new ProvidedDataSourceH2Datastore
@@ -89,7 +96,7 @@ public class ProvidedDataSourceH2Datastore extends Datastore implements Provided
 	 */
 	protected void registerMBean() {
 		try {
-			ObjectName on = new ObjectName(getClass().getPackage().getName(), "datastore", getClass().getSimpleName());
+			ObjectName on = new ObjectName(getClass().getPackage().getName() +  ":datastore=" + getClass().getSimpleName());
 			if(ManagementFactory.getPlatformMBeanServer().isRegistered(on)) {
 				ManagementFactory.getPlatformMBeanServer().unregisterMBean(on);
 			}
@@ -104,8 +111,33 @@ public class ProvidedDataSourceH2Datastore extends Datastore implements Provided
 	 * Starts this data store
 	 */
 	public void start() {
-		registerMBean();
+		//registerMBean();
 		GenOrmDataSource.setDataSource(new DSEnvelope(dataSource));
+		started.set(true);
+		queueWorker = new Thread(this, "H2DataPointWriter#" + serial.incrementAndGet());
+		queueWorker.setDaemon(true);
+		queueWorker.start();
+	}
+	
+	public void run() {
+		while(isStarted()) {
+			try {
+				Collection<DataPointSet> drain = new HashSet<DataPointSet>(100);
+				DataPointSet dps = null;
+				do {
+					dps = dataPointQueue.poll(500, TimeUnit.MILLISECONDS);
+					if(dps!=null) drain.add(dps);
+				} while(dps!=null && drain.size()<100);
+				if(!drain.isEmpty()) {
+					dequeued.addAndGet(drain.size());
+					putDataPoints(drain);
+				}
+			} catch (InterruptedException ief) {
+				Thread.interrupted();
+			} catch (Exception ex) {
+				logger.error("Failed to write datapoint set", ex);						
+			}
+		}
 	}
 	
 	/**
@@ -120,6 +152,7 @@ public class ProvidedDataSourceH2Datastore extends Datastore implements Provided
 			conn = this.dataSource.getConnection();
 			String dbUrl = conn.getMetaData().getURL();
 			logger.info("\n\t==================================\n\tEmbedded-OpenTSDB DataSource:" + dbUrl + "\n\t==================================\n");
+			System.err.println("\n\t==================================\n\tEmbedded-OpenTSDB DataSource:" + dbUrl + "\n\t==================================\n");
 		} catch (Exception ex) {
 			throw new RuntimeException("Provided DataSource Failed", ex);
 		} finally {
@@ -143,8 +176,7 @@ public class ProvidedDataSourceH2Datastore extends Datastore implements Provided
 		}				
 	}
 	
-
-
+	
 
 	public void putDataPoints(DataPointSet dps)
 	{
@@ -184,6 +216,42 @@ public class ProvidedDataSourceH2Datastore extends Datastore implements Provided
 		}
 
 	}
+	
+	public void putDataPoints(Collection<DataPointSet> dpColl) {
+		if(dpColl==null || dpColl.isEmpty()) return;		
+		GenOrmDataSource.attachAndBegin();
+		try {
+			for(DataPointSet dps: dpColl) {
+				String key = createMetricKey(dps);
+				Metric m = Metric.factory.findOrCreate(key);
+				m.setName(dps.getName());
+	
+				SortedMap<String, String> tags = dps.getTags();
+				for (String name : tags.keySet()) {
+					String value = tags.get(name);
+					Tag.factory.findOrCreate(name, value);
+					MetricTag.factory.findOrCreate(key, name, value);
+				}
+	
+				for (net.opentsdb.core.DataPoint dataPoint : dps.getDataPoints()) {
+					DataPoint dbDataPoint = DataPoint.factory.createWithGeneratedKey();
+					dbDataPoint.setMetricRef(m);
+					dbDataPoint.setTimestamp(new Timestamp(dataPoint.getTimestamp()));
+					if (dataPoint.isInteger()) {
+						dbDataPoint.setLongValue(dataPoint.getLongValue());					
+					} else {
+						dbDataPoint.setDoubleValue(dataPoint.getDoubleValue());
+					}
+					dataPointCounter.incrementAndGet();
+				}
+			}
+			GenOrmDataSource.commit();
+		} finally {
+			GenOrmDataSource.close();
+		}
+	}
+
+			
 	
 	/**
 	 * Returns the number of data points inserted.
@@ -296,8 +364,9 @@ public class ProvidedDataSourceH2Datastore extends Datastore implements Provided
 	 */
 	@Override
 	public void close() throws InterruptedException, DatastoreException {
-		// TODO Auto-generated method stub
-		
+		started.set(false);		
+		queueWorker.interrupt();
+		queueWorker = null;
 	}
 	
 
