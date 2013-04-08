@@ -140,6 +140,7 @@ public class MainBean {
 	public void startWebServer() throws Exception 	{
 		webServer = injector.getInstance(Server.class);
 		webServer.start();		
+		System.out.println("\n\t==================================\n\tStarted webserver\n\t==================================\n");
 	}
 	
 	

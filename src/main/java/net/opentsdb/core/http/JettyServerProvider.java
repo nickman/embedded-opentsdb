@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>
 package net.opentsdb.core.http;
 
+import java.net.InetSocketAddress;
+
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.name.Named;
@@ -33,19 +35,23 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
  */
 public class JettyServerProvider implements Provider<Server>
 {
+	public static final String JETTY_IFACE_PROPERTY = "opentsdb.jetty.iface";
 	public static final String JETTY_PORT_PROPERTY = "opentsdb.jetty.port";
 	public static final String JETTY_WEB_ROOT_PROPERTY = "opentsdb.jetty.static_web_root";
 
 	private int m_port;
+	private String m_iface;
 	private String m_webRoot;
 	private GuiceFilter m_guiceFilter;
 
 
 	@Inject
 	public JettyServerProvider(@Named(JETTY_PORT_PROPERTY)int port,
+			@Named(JETTY_IFACE_PROPERTY)String iface,
 			@Named(JETTY_WEB_ROOT_PROPERTY)String webRoot,
 			GuiceFilter guiceFilter)
 	{
+		m_iface = iface==null || iface.trim().isEmpty() ? "localhost" : iface.trim();
 		m_port = port;
 		m_webRoot = webRoot;
 		m_guiceFilter = guiceFilter;
@@ -54,7 +60,9 @@ public class JettyServerProvider implements Provider<Server>
 	@Override
 	public Server get()
 	{
-		Server server = new Server(m_port);
+		InetSocketAddress sock = new InetSocketAddress(m_iface, m_port);
+		//Server server = new Server(m_port);
+		Server server = new Server(sock);
 		ServletContextHandler servletContextHandler =
 				new ServletContextHandler();
 

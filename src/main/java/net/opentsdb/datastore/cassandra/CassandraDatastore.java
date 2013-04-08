@@ -76,6 +76,10 @@ public class CassandraDatastore extends Datastore
 	private DataCache<String> m_tagNameCache = new DataCache<String>(STRING_CACHE_SIZE);
 	private DataCache<String> m_tagValueCache = new DataCache<String>(STRING_CACHE_SIZE);
 
+	
+	private void audit(Object msg) {
+		logger.warn("\n\t***\n\t" + msg + "\n\t***\n");
+	}
 
 	@Inject
 	public CassandraDatastore(@Named(HOST_NAME_PROPERTY)String cassandraHost,
@@ -88,13 +92,18 @@ public class CassandraDatastore extends Datastore
 		m_rowWidth = rowWidth;
 		m_rowReadSize = rowReadSize;
 
+		audit("Getting Cluster for [" + cassandraHost + ":" + cassandraPort + "]");
 		m_cluster = HFactory.getOrCreateCluster("tsdb-cluster",
 				cassandraHost+":"+cassandraPort);
-
+		audit("Got Cluster for [" + cassandraHost + ":" + cassandraPort + "]:" + m_cluster.getName());
 		KeyspaceDefinition keyspaceDef = m_cluster.describeKeyspace(KEYSPACE);
+		audit("Got Keyspace for [" + cassandraHost + ":" + cassandraPort + "]:" + keyspaceDef);
 
-		if (keyspaceDef == null)
+		if (keyspaceDef == null) {
+			audit("Creating Keyspace for [" + cassandraHost + ":" + cassandraPort + "]");
 			createSchema(replicationFactor);
+			
+		}
 
 		m_keyspace = HFactory.createKeyspace(KEYSPACE, m_cluster);
 
@@ -170,8 +179,9 @@ public class CassandraDatastore extends Datastore
 		KeyspaceDefinition newKeyspace = HFactory.createKeyspaceDefinition(
 				KEYSPACE, ThriftKsDef.DEF_STRATEGY_CLASS,
 				replicationFactor, cfDef);
-
+		audit("Adding Keyspace [" + newKeyspace.getName() + "]");		
 		m_cluster.addKeyspace(newKeyspace, true);
+		audit("Add Keyspace [" + newKeyspace.getName() + "] Complete !");
 	}
 
 
